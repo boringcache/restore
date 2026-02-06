@@ -45304,7 +45304,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
 const core = __importStar(__nccwpck_require__(37484));
-const exec = __importStar(__nccwpck_require__(95236));
 const utils_1 = __nccwpck_require__(2219);
 async function run() {
     try {
@@ -45316,12 +45315,13 @@ async function run() {
             key: core.getInput('key'),
             restoreKeys: core.getInput('restore-keys'),
             enableCrossOsArchive: core.getBooleanInput('enableCrossOsArchive'),
-            enablePlatformSuffix: core.getBooleanInput('enable-platform-suffix'),
+            noPlatform: core.getBooleanInput('no-platform'),
             failOnCacheMiss: core.getBooleanInput('fail-on-cache-miss'),
             lookupOnly: core.getBooleanInput('lookup-only'),
+            verbose: core.getBooleanInput('verbose'),
         };
         (0, utils_1.validateInputs)(inputs);
-        await (0, utils_1.setupBoringCache)(cliVersion);
+        await (0, utils_1.ensureBoringCache)({ version: cliVersion });
         const workspace = (0, utils_1.getWorkspace)(inputs);
         let entriesString;
         if (inputs.entries) {
@@ -45331,38 +45331,57 @@ async function run() {
             entriesString = (0, utils_1.convertCacheFormatToEntries)(inputs, 'restore');
         }
         const entries = (0, utils_1.parseEntries)(entriesString, 'restore');
+        const shouldDisablePlatform = inputs.enableCrossOsArchive || inputs.noPlatform;
         let cacheHit = false;
         let primaryKey = '';
         let matchedKey = '';
-        core.info(`🔍 Attempting to restore cache entries: ${entriesString}`);
-        const primaryResult = await exec.exec('boringcache', [
-            'restore',
-            workspace,
-            entriesString
-        ], { ignoreReturnCode: true });
+        core.info(`Attempting to restore cache entries: ${entriesString}`);
+        const restoreArgs = ['restore', workspace, entriesString];
+        if (shouldDisablePlatform) {
+            restoreArgs.push('--no-platform');
+        }
+        if (inputs.failOnCacheMiss) {
+            restoreArgs.push('--fail-on-cache-miss');
+        }
+        if (inputs.lookupOnly) {
+            restoreArgs.push('--lookup-only');
+        }
+        if (inputs.verbose) {
+            restoreArgs.push('--verbose');
+        }
+        const primaryResult = await (0, utils_1.execBoringCache)(restoreArgs, { ignoreReturnCode: true });
         if (primaryResult === 0) {
-            core.info('✅ Cache hit with primary entries');
+            core.info('Cache hit with primary entries');
             cacheHit = true;
             primaryKey = entries.map(e => e.tag).join(',');
             matchedKey = primaryKey;
         }
         else {
-            core.info('❌ Cache miss with primary entries');
+            core.info('Cache miss with primary entries');
             if (inputs.restoreKeys) {
-                core.info('🔍 Trying restore keys...');
+                core.info('Trying restore keys...');
                 const restoreKeysList = inputs.restoreKeys.split('\n').map(k => k.trim()).filter(k => k);
                 for (const restoreKey of restoreKeysList) {
-                    const platformSuffix = (0, utils_1.getPlatformSuffix)(inputs.enablePlatformSuffix, inputs.enableCrossOsArchive);
+                    const platformSuffix = (0, utils_1.getPlatformSuffix)(shouldDisablePlatform, inputs.enableCrossOsArchive);
                     const fullRestoreKey = restoreKey + platformSuffix;
-                    const fallbackEntry = `${fullRestoreKey}:${entries[0].path}`;
-                    core.info(`🔍 Attempting restore key: ${fallbackEntry}`);
-                    const restoreResult = await exec.exec('boringcache', [
-                        'restore',
-                        workspace,
-                        fallbackEntry
-                    ], { ignoreReturnCode: true });
+                    const fallbackEntry = `${fullRestoreKey}:${entries[0].restorePath}`;
+                    core.info(`Attempting restore key: ${fallbackEntry}`);
+                    const fallbackArgs = ['restore', workspace, fallbackEntry];
+                    if (shouldDisablePlatform) {
+                        fallbackArgs.push('--no-platform');
+                    }
+                    if (inputs.failOnCacheMiss) {
+                        fallbackArgs.push('--fail-on-cache-miss');
+                    }
+                    if (inputs.lookupOnly) {
+                        fallbackArgs.push('--lookup-only');
+                    }
+                    if (inputs.verbose) {
+                        fallbackArgs.push('--verbose');
+                    }
+                    const restoreResult = await (0, utils_1.execBoringCache)(fallbackArgs, { ignoreReturnCode: true });
                     if (restoreResult === 0) {
-                        core.info(`✅ Cache hit with restore key: ${fullRestoreKey}`);
+                        core.info(`Cache hit with restore key: ${fullRestoreKey}`);
                         cacheHit = true;
                         matchedKey = fullRestoreKey;
                         break;
@@ -45426,12 +45445,12 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.setupBoringCache = setupBoringCache;
+exports.execBoringCache = exports.ensureBoringCache = void 0;
 exports.getCacheConfig = getCacheConfig;
 exports.validateInputs = validateInputs;
+exports.resolvePath = resolvePath;
 exports.resolvePaths = resolvePaths;
 exports.parseEntries = parseEntries;
-exports.resolvePath = resolvePath;
 exports.getPlatformSuffix = getPlatformSuffix;
 exports.getWorkspace = getWorkspace;
 exports.convertCacheFormatToEntries = convertCacheFormatToEntries;
@@ -45439,29 +45458,23 @@ const core = __importStar(__nccwpck_require__(37484));
 const os = __importStar(__nccwpck_require__(70857));
 const path = __importStar(__nccwpck_require__(16928));
 const action_core_1 = __nccwpck_require__(68701);
-async function setupBoringCache(cliVersion = 'v1.0.0') {
-    await (0, action_core_1.ensureBoringCache)({
-        version: cliVersion,
-        token: process.env.BORINGCACHE_API_TOKEN,
-    });
-}
-async function getCacheConfig(key, enableCrossOsArchive, enablePlatformSuffix = false) {
-    var _a;
-    const workspace = process.env.BORINGCACHE_DEFAULT_WORKSPACE ||
-        ((_a = process.env.GITHUB_REPOSITORY) === null || _a === void 0 ? void 0 : _a.split('/')[1]) ||
-        'default';
+Object.defineProperty(exports, "ensureBoringCache", ({ enumerable: true, get: function () { return action_core_1.ensureBoringCache; } }));
+Object.defineProperty(exports, "execBoringCache", ({ enumerable: true, get: function () { return action_core_1.execBoringCache; } }));
+async function getCacheConfig(key, enableCrossOsArchive, noPlatform = false) {
+    let workspace = process.env.BORINGCACHE_DEFAULT_WORKSPACE ||
+        process.env.GITHUB_REPOSITORY ||
+        'default/default';
+    if (!workspace.includes('/')) {
+        workspace = `default/${workspace}`;
+    }
     let platformSuffix = '';
-    if (enablePlatformSuffix && !enableCrossOsArchive) {
-        const platform = os.platform() === 'darwin' ? 'darwin' : 'linux';
+    if (!noPlatform && !enableCrossOsArchive) {
+        const platform = os.platform() === 'darwin' ? 'darwin' : os.platform() === 'win32' ? 'windows' : 'linux';
         const arch = os.arch() === 'arm64' ? 'arm64' : 'amd64';
         platformSuffix = `-${platform}-${arch}`;
     }
     const fullKey = key + platformSuffix;
-    return {
-        workspace,
-        fullKey,
-        platformSuffix
-    };
+    return { workspace, fullKey, platformSuffix };
 }
 function validateInputs(inputs) {
     const hasCliFormat = inputs.workspace || inputs.entries;
@@ -45472,10 +45485,8 @@ function validateInputs(inputs) {
     if (hasCliFormat && hasCacheFormat) {
         core.warning('Both CLI format (workspace/entries) and actions/cache format (path/key) provided. Using CLI format.');
     }
-    if (hasCliFormat) {
-        if (!inputs.entries) {
-            throw new Error('Input "entries" is required when using CLI format');
-        }
+    if (hasCliFormat && !inputs.entries) {
+        throw new Error('Input "entries" is required when using CLI format');
     }
     if (hasCacheFormat && !hasCliFormat) {
         if (!inputs.path) {
@@ -45485,40 +45496,9 @@ function validateInputs(inputs) {
             throw new Error('Input "key" is required when using actions/cache format');
         }
     }
-    if (inputs.workspace && !inputs.workspace.includes('/')) {
+    if (inputs.workspace && typeof inputs.workspace === 'string' && !inputs.workspace.includes('/')) {
         throw new Error('Workspace must be in format "namespace/workspace" (e.g., "my-org/my-project")');
     }
-}
-function resolvePaths(pathInput) {
-    return pathInput.split('\n')
-        .map(p => p.trim())
-        .filter(p => p)
-        .map(cachePath => {
-        if (path.isAbsolute(cachePath)) {
-            return cachePath;
-        }
-        if (cachePath.startsWith('~/')) {
-            return path.join(os.homedir(), cachePath.slice(2));
-        }
-        return path.resolve(process.cwd(), cachePath);
-    })
-        .join('\n');
-}
-function parseEntries(entriesInput, action) {
-    return entriesInput.split(',')
-        .map(entry => entry.trim())
-        .filter(entry => entry)
-        .map(entry => {
-        // Unified format: tag:path for both save and restore.
-        // Use the first colon so Windows drive letters are preserved in the path.
-        const colonIndex = entry.indexOf(':');
-        if (colonIndex === -1) {
-            throw new Error(`Invalid entry format: ${entry}. Expected format: tag:path`);
-        }
-        const tag = entry.substring(0, colonIndex);
-        const entryPath = entry.substring(colonIndex + 1);
-        return { tag, path: resolvePath(entryPath) };
-    });
 }
 function resolvePath(pathInput) {
     const trimmedPath = pathInput.trim();
@@ -45530,16 +45510,56 @@ function resolvePath(pathInput) {
     }
     return path.resolve(process.cwd(), trimmedPath);
 }
-function getPlatformSuffix(enablePlatformSuffix, enableCrossOsArchive) {
-    if (!enablePlatformSuffix || enableCrossOsArchive) {
+function resolvePaths(pathInput) {
+    return pathInput
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p)
+        .map(p => resolvePath(p))
+        .join('\n');
+}
+function parseEntries(entriesInput, _action, options = {}) {
+    var _a;
+    const shouldResolve = (_a = options.resolvePaths) !== null && _a !== void 0 ? _a : true;
+    return entriesInput
+        .split(',')
+        .map(entry => entry.trim())
+        .filter(entry => entry)
+        .map(entry => {
+        const colonIndex = entry.indexOf(':');
+        if (colonIndex === -1) {
+            throw new Error(`Invalid entry format: ${entry}. Expected format: tag:path or tag:restore_path=>save_path`);
+        }
+        const tag = entry.substring(0, colonIndex).trim();
+        const pathSpec = entry.substring(colonIndex + 1).trim();
+        if (!tag) {
+            throw new Error(`Invalid entry format: ${entry}. Tag cannot be empty`);
+        }
+        let restorePathInput = pathSpec;
+        let savePathInput = pathSpec;
+        const redirectIndex = pathSpec.indexOf('=>');
+        if (redirectIndex !== -1) {
+            restorePathInput = pathSpec.substring(0, redirectIndex).trim();
+            savePathInput = pathSpec.substring(redirectIndex + 2).trim();
+            if (!restorePathInput || !savePathInput) {
+                throw new Error(`Invalid entry format: ${entry}. Expected restore and save paths when using => syntax`);
+            }
+        }
+        const restorePath = shouldResolve ? resolvePath(restorePathInput) : restorePathInput;
+        const savePath = shouldResolve ? resolvePath(savePathInput) : savePathInput;
+        return { tag, restorePath, savePath };
+    });
+}
+function getPlatformSuffix(noPlatform, enableCrossOsArchive) {
+    if (noPlatform || enableCrossOsArchive) {
         return '';
     }
-    const platform = os.platform() === 'darwin' ? 'darwin' : 'linux';
+    const platform = os.platform() === 'darwin' ? 'darwin' : os.platform() === 'win32' ? 'windows' : 'linux';
     const arch = os.arch() === 'arm64' ? 'arm64' : 'amd64';
     return `-${platform}-${arch}`;
 }
 function getWorkspace(inputs) {
-    if (inputs.workspace) {
+    if (inputs.workspace && typeof inputs.workspace === 'string') {
         return inputs.workspace;
     }
     const repo = process.env.GITHUB_REPOSITORY;
@@ -45549,16 +45569,22 @@ function getWorkspace(inputs) {
     }
     return 'default/default';
 }
-function convertCacheFormatToEntries(inputs, action) {
+function convertCacheFormatToEntries(inputs, _action) {
     if (!inputs.path || !inputs.key) {
         throw new Error('actions/cache format requires both path and key inputs');
     }
-    const paths = inputs.path.split('\n')
-        .map((p) => p.trim())
-        .filter((p) => p);
-    const platformSuffix = getPlatformSuffix(inputs.enablePlatformSuffix, inputs.enableCrossOsArchive);
-    const fullKey = inputs.key + platformSuffix;
-    return paths.map((p) => `${fullKey}:${resolvePath(p)}`).join(',');
+    const pathInput = inputs.path;
+    const keyInput = inputs.key;
+    const noPlatformInput = inputs.noPlatform;
+    const enableCrossOsArchiveInput = inputs.enableCrossOsArchive;
+    const paths = pathInput
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p);
+    const shouldDisablePlatform = noPlatformInput || enableCrossOsArchiveInput || false;
+    const platformSuffix = getPlatformSuffix(shouldDisablePlatform, enableCrossOsArchiveInput || false);
+    const fullKey = keyInput + platformSuffix;
+    return paths.map(p => `${fullKey}:${resolvePath(p)}`).join(',');
 }
 
 
