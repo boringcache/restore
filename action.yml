@@ -26,6 +26,10 @@ inputs:
     description: 'Enable cross-platform cache sharing by disabling automatic platform suffixes (translates to CLI --no-platform flag)'
     default: 'false'
     required: false
+  enable-platform-suffix:
+    description: 'Enable automatic platform suffix for tags (default: true)'
+    default: 'true'
+    required: false
   # CLI flags (passed directly to boringcache CLI)
   no-platform:
     description: 'Disable automatic platform suffix for tags (CLI --no-platform flag)'
