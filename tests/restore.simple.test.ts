@@ -83,6 +83,89 @@ describe('Restore Action', () => {
 
       expect(core.setFailed).toHaveBeenCalledWith('Cache miss and fail-on-cache-miss is enabled');
     });
+
+    it('should pass --no-platform when no-platform is true', async () => {
+      mockGetInput({
+        workspace: 'my-org/my-project',
+        entries: 'deps:node_modules',
+      });
+      mockGetBooleanInput({ 'no-platform': true });
+
+      await run();
+
+      expect(execBoringCache).toHaveBeenCalledWith(
+        expect.arrayContaining(['restore', 'my-org/my-project', 'deps:node_modules', '--no-platform']),
+        expect.any(Object)
+      );
+    });
+
+    it('should pass --no-platform when enableCrossOsArchive is true', async () => {
+      mockGetInput({
+        workspace: 'my-org/my-project',
+        entries: 'deps:node_modules',
+      });
+      mockGetBooleanInput({ enableCrossOsArchive: true });
+
+      await run();
+
+      expect(execBoringCache).toHaveBeenCalledWith(
+        expect.arrayContaining(['restore', 'my-org/my-project', 'deps:node_modules', '--no-platform']),
+        expect.any(Object)
+      );
+    });
+
+    it('should pass --verbose when verbose is true', async () => {
+      mockGetInput({
+        workspace: 'my-org/my-project',
+        entries: 'deps:node_modules',
+      });
+      mockGetBooleanInput({ verbose: true });
+
+      await run();
+
+      expect(execBoringCache).toHaveBeenCalledWith(
+        expect.arrayContaining(['restore', 'my-org/my-project', 'deps:node_modules', '--verbose']),
+        expect.any(Object)
+      );
+    });
+
+    it('should pass --lookup-only when lookup-only is true', async () => {
+      mockGetInput({
+        workspace: 'my-org/my-project',
+        entries: 'deps:node_modules',
+      });
+      mockGetBooleanInput({ 'lookup-only': true });
+
+      await run();
+
+      expect(execBoringCache).toHaveBeenCalledWith(
+        expect.arrayContaining(['restore', 'my-org/my-project', 'deps:node_modules', '--lookup-only']),
+        expect.any(Object)
+      );
+    });
+
+    it('should pass all flags together', async () => {
+      mockGetInput({
+        workspace: 'my-org/my-project',
+        entries: 'deps:node_modules',
+      });
+      mockGetBooleanInput({
+        'no-platform': true,
+        'fail-on-cache-miss': true,
+        'lookup-only': true,
+        verbose: true,
+      });
+
+      await run();
+
+      expect(execBoringCache).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          'restore', 'my-org/my-project', 'deps:node_modules',
+          '--no-platform', '--fail-on-cache-miss', '--lookup-only', '--verbose',
+        ]),
+        expect.any(Object)
+      );
+    });
   });
 
   describe('Error Handling', () => {
