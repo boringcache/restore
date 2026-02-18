@@ -1,6 +1,6 @@
 {
   "name": "boringcache-restore",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Restore cache artifacts from BoringCache. Use with boringcache/save for granular control.",
   "main": "dist/restore-only/index.js",
   "scripts": {
