@@ -11,12 +11,17 @@ jest.mock('@actions/core', () => ({
   addPath: jest.fn(),
 }));
 
-jest.mock('@boringcache/action-core', () => ({
-  ensureBoringCache: jest.fn().mockResolvedValue(undefined),
-  execBoringCache: jest.fn().mockResolvedValue(0),
-}));
+jest.mock('@boringcache/action-core', () => {
+  const actual = jest.requireActual('@boringcache/action-core');
+  return {
+    ...actual,
+    ensureBoringCache: jest.fn().mockResolvedValue(undefined),
+    execBoringCache: jest.fn().mockResolvedValue(0),
+  };
+});
 
 jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
   promises: {
     chmod: jest.fn(),
     rename: jest.fn(),
