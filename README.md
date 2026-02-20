@@ -1,14 +1,8 @@
 # boringcache/restore
 
-**Cache once. Reuse everywhere.**
+Restore directories from BoringCache at a specific point in your workflow. For automatic restore + save, use `boringcache/action` instead.
 
-BoringCache is a universal build artifact cache for CI, Docker, and local development. It stores and restores directories you choose so build outputs, dependencies, and tool caches can be reused across environments.
-
-BoringCache does not run builds and is not tied to any build tool. It works with any language, framework, or workflow by caching directories explicitly selected by the user.
-
-Caches are content-addressed and verified before restore. If identical content already exists, uploads are skipped. The same cache can be reused in GitHub Actions, Docker/BuildKit, and on developer machines using the same CLI.
-
-This action provides explicit restore steps for workflows that need precise control over when caches are read. If you want automatic restore at job start and save at job end, use `boringcache/action` instead.
+Caches are content-addressed — identical content is never re-uploaded.
 
 ## Quick start
 
