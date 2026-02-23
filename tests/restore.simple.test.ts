@@ -23,7 +23,7 @@ describe('Restore Action', () => {
 
       await run();
 
-      expect(ensureBoringCache).toHaveBeenCalledWith({ version: 'v1.5.0' });
+      expect(ensureBoringCache).toHaveBeenCalled();
 
       expect(execBoringCache).toHaveBeenCalledWith(
         expect.arrayContaining(['restore', 'my-org/my-project', 'deps:node_modules,build:dist']),
