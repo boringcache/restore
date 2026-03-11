@@ -1,128 +1,41 @@
 # boringcache/restore
 
-Restore directories from BoringCache at a specific point in your workflow. For automatic restore + save, use `boringcache/action` instead.
+Restore directories from BoringCache at a specific point in your workflow.
 
-Caches are content-addressed — identical content is never re-uploaded.
+Use this when cache timing needs to be explicit. For automatic restore + save, use `boringcache/action`.
 
 ## Quick start
 
 ```yaml
 - uses: boringcache/restore@v1
-  with:
-    workspace: my-org/my-project
-    entries: deps:node_modules
-  env:
-    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-```
-
-Entries use `tag:path` format (for example, `deps:node_modules`).
-
-## Mental model
-
-This action restores directories you explicitly choose.
-
-- You decide what is expensive (dependencies, build outputs, toolchains)
-- BoringCache fingerprints the directory contents
-- If the content matches an existing cache, it is restored
-- You decide what to do on a cache miss (install, build, etc.)
-
-This action does not infer what should be cached and does not modify your build.
-
-## Common patterns
-
-### Simple CI cache (conditional install)
-
-```yaml
-- uses: boringcache/restore@v1
   id: cache
   with:
     workspace: my-org/my-project
     entries: deps:node_modules
   env:
     BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-
-- run: npm ci
-  if: steps.cache.outputs.cache-hit != 'true'
 ```
 
-### Advanced pattern: Restore + save pair
+## Key inputs
 
-```yaml
-- uses: boringcache/restore@v1
-  id: cache
-  with:
-    workspace: my-org/my-project
-    entries: deps:node_modules
-  env:
-    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-
-- run: npm ci
-
-- uses: boringcache/save@v1
-  with:
-    workspace: my-org/my-project
-    entries: deps:node_modules
-  env:
-    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
-```
-
-For new workflows, keep `boringcache/restore` on `BORINGCACHE_RESTORE_TOKEN` and only provide `BORINGCACHE_SAVE_TOKEN` to trusted jobs that should publish updates.
-
-## Inputs
-
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `workspace` | No | repo name | Workspace in `org/repo` form. Defaults to `BORINGCACHE_DEFAULT_WORKSPACE` or repo name. |
-| `entries` | No | - | Comma-separated `tag:path` pairs. Required unless using actions/cache-compatible inputs. |
-| `path` | No | - | Files/directories to restore (actions/cache compatible). |
-| `key` | No | - | Cache key (actions/cache compatible). |
-| `restore-keys` | No | - | Fallback restore keys (actions/cache compatible). |
-| `enableCrossOsArchive` | No | `false` | Enable cross-OS sharing by disabling platform suffixes (actions/cache compatibility). |
-| `no-platform` | No | `false` | Disable OS/arch scoping for cache tags. |
-| `fail-on-cache-miss` | No | `false` | Fail if cache is not found. |
-| `lookup-only` | No | `false` | Check cache existence without downloading. |
-| `verbose` | No | `false` | Enable detailed output. |
+| Input | Description |
+|-------|-------------|
+| `workspace` | Workspace in `org/repo` form. Defaults to the repo name. |
+| `entries` | Comma-separated `tag:path` pairs. |
+| `path`, `key`, `restore-keys` | `actions/cache` compatibility inputs. |
+| `lookup-only` | Check existence without downloading. |
+| `fail-on-cache-miss` | Fail when no cache is found. |
+| `no-platform` / `enableCrossOsArchive` | Disable platform suffixing for portable caches only. |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `cache-hit` | `true` if an exact match was found |
-| `cache-primary-key` | Key used for restore |
-| `cache-matched-key` | Key that matched |
+| `cache-hit` | Whether an exact match was restored. |
+| `cache-primary-key` | Primary key used for restore. |
+| `cache-matched-key` | Key that matched. |
 
-## Platform behavior
+## Docs
 
-Platform scoping is what makes it safe to reuse caches across machines.
-
-By default, caches are isolated by OS and architecture. Use `no-platform: true` or `enableCrossOsArchive: true` only for portable artifacts (sources, lockfiles).
-
-## Environment variables
-
-| Variable | Description |
-|----------|-------------|
-| `BORINGCACHE_RESTORE_TOKEN` | Restore-capable token (required) |
-| `BORINGCACHE_DEFAULT_WORKSPACE` | Default workspace (if not specified in inputs) |
-
-## Migrating from actions/cache/restore (optional)
-
-```diff
-- uses: actions/cache/restore@v4
-+ uses: boringcache/restore@v1
-+ env:
-+   BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-```
-
-## Troubleshooting
-
-- Unauthorized or workspace not found: ensure `BORINGCACHE_RESTORE_TOKEN` is set and the workspace exists.
-- Cache miss: check `workspace` and `entries`, and remember platform scoping.
-- Cache hit detection: rely on the `cache-hit` output rather than CLI exit codes.
-
-## Release notes
-
-See https://github.com/boringcache/restore/releases.
-
-## License
-
-MIT
+- [GitHub Actions docs](https://boringcache.com/docs#save-restore)
+- [GitHub Actions auth and trust model](https://boringcache.com/docs#actions-auth)
