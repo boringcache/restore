@@ -12,7 +12,7 @@ Caches are content-addressed — identical content is never re-uploaded.
     workspace: my-org/my-project
     entries: deps:node_modules
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
 ```
 
 Entries use `tag:path` format (for example, `deps:node_modules`).
@@ -39,7 +39,7 @@ This action does not infer what should be cached and does not modify your build.
     workspace: my-org/my-project
     entries: deps:node_modules
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
 
 - run: npm ci
   if: steps.cache.outputs.cache-hit != 'true'
@@ -54,7 +54,7 @@ This action does not infer what should be cached and does not modify your build.
     workspace: my-org/my-project
     entries: deps:node_modules
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
 
 - run: npm ci
 
@@ -63,8 +63,10 @@ This action does not infer what should be cached and does not modify your build.
     workspace: my-org/my-project
     entries: deps:node_modules
   env:
-    BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
+    BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
 ```
+
+For new workflows, keep `boringcache/restore` on `BORINGCACHE_RESTORE_TOKEN` and only provide `BORINGCACHE_SAVE_TOKEN` to trusted jobs that should publish updates.
 
 ## Inputs
 
@@ -99,7 +101,7 @@ By default, caches are isolated by OS and architecture. Use `no-platform: true` 
 
 | Variable | Description |
 |----------|-------------|
-| `BORINGCACHE_API_TOKEN` | API token (required) |
+| `BORINGCACHE_RESTORE_TOKEN` | Restore-capable token (required) |
 | `BORINGCACHE_DEFAULT_WORKSPACE` | Default workspace (if not specified in inputs) |
 
 ## Migrating from actions/cache/restore (optional)
@@ -108,12 +110,12 @@ By default, caches are isolated by OS and architecture. Use `no-platform: true` 
 - uses: actions/cache/restore@v4
 + uses: boringcache/restore@v1
 + env:
-+   BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN }}
++   BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
 ```
 
 ## Troubleshooting
 
-- Unauthorized or workspace not found: ensure `BORINGCACHE_API_TOKEN` is set and the workspace exists.
+- Unauthorized or workspace not found: ensure `BORINGCACHE_RESTORE_TOKEN` is set and the workspace exists.
 - Cache miss: check `workspace` and `entries`, and remember platform scoping.
 - Cache hit detection: rely on the `cache-hit` output rather than CLI exit codes.
 

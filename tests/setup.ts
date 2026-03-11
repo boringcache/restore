@@ -38,6 +38,7 @@ beforeEach(() => {
   actionCore.ensureBoringCache.mockResolvedValue(undefined);
   actionCore.execBoringCache.mockResolvedValue(0);
   process.env = { ...originalEnv };
+  process.env.BORINGCACHE_SAVE_TOKEN = 'test-save-token';
 });
 
 afterEach(() => {
