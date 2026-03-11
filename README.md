@@ -1,8 +1,10 @@
 # boringcache/restore
 
-Restore directories from BoringCache at a specific point in your workflow.
+Restore directories from BoringCache at an exact point in the job.
 
-Use this when cache timing needs to be explicit. For automatic restore + save, use `boringcache/action`.
+## When to use it
+
+Pick this when restore needs to happen before one specific step and save should happen later or somewhere else.
 
 ## Quick start
 
@@ -15,6 +17,18 @@ Use this when cache timing needs to be explicit. For automatic restore + save, u
   env:
     BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
 ```
+
+## Trust model
+
+- `BORINGCACHE_RESTORE_TOKEN` is the preferred token for this action.
+- A save-capable token also works because save implies restore.
+- This action does not publish cache updates, so it is safe for low-trust jobs when tags are restored intentionally.
+
+## What it handles
+
+- Restores the directories you name in `tag:path` form.
+- Supports `actions/cache`-style `path`, `key`, and `restore-keys` inputs.
+- Keeps platform scoping on by default.
 
 ## Key inputs
 
@@ -35,7 +49,7 @@ Use this when cache timing needs to be explicit. For automatic restore + save, u
 | `cache-primary-key` | Primary key used for restore. |
 | `cache-matched-key` | Key that matched. |
 
-## Docs
+## Learn more
 
 - [GitHub Actions docs](https://boringcache.com/docs#save-restore)
 - [GitHub Actions auth and trust model](https://boringcache.com/docs#actions-auth)
